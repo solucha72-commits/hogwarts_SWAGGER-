@@ -60,7 +60,7 @@ jobs:
             app:
               image: ${{ env.IMAGE_NAME }}:${{ github.run_number }}
               ports:
-                - '80:8080'
+                - '80:8080' 
               restart: always" > docker-compose.yml
 
       # 9️⃣ Deploy a Elastic Beanstalk
