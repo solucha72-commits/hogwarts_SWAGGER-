@@ -23,9 +23,9 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: 'gradle'
+          cache: gradle
 
-      # 3️⃣ Dar permisos a gradlew (IMPORTANTE en Linux)
+      # 3️⃣ Permiso a gradlew (IMPORTANTE en Linux)
       - name: Give execute permission to gradlew
         run: chmod +x gradlew
 
@@ -34,18 +34,17 @@ jobs:
         run: ./gradlew build -x test
 
       # 5️⃣ Login en GitHub Container Registry
-      - name: Log in to GitHub Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 6️⃣ Nombre imagen en minúsculas
-      - name: Sanitize Image Name
-        run: |
-          REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/-/g' | sed 's/-$//')
-          echo "IMAGE_NAME=ghcr.io/$REPO" >> $GITHUB_ENV
+      # 6️⃣ Nombre fijo válido para la imagen
+      - name: Set Image Name
+        run: echo "IMAGE_NAME=ghcr.io/solucha72-commits/hogwartsapi" >> $GITHUB_ENV
+
       # 7️⃣ Build y push Docker
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
