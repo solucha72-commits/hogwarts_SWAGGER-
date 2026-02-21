@@ -21,17 +21,30 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
+      - name: Test AWS connection
+        run: aws sts get-caller-identity
+
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Deploy to Elastic Beanstalk
+      - name: Get AWS Account ID
+        run: echo "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_ENV
+
+      - name: Zip application
+        run: zip -r application.zip .
+
+      - name: Upload to S3
+        run: aws s3 cp application.zip s3://elasticbeanstalk-us-east-1-$ACCOUNT_ID/application.zip
+
+      - name: Create new application version
         run: |
-          zip -r application.zip .
           aws elasticbeanstalk create-application-version \
             --application-name HogwartsAPI \
             --version-label v-${{ github.run_number }} \
-            --source-bundle S3Bucket="elasticbeanstalk-us-east-1-$(aws sts get-caller-identity --query Account --output text)",S3Key="application.zip"
+            --source-bundle S3Bucket="elasticbeanstalk-us-east-1-$ACCOUNT_ID",S3Key="application.zip"
 
+      - name: Deploy to Elastic Beanstalk
+        run: |
           aws elasticbeanstalk update-environment \
             --environment-name HogwartsAPI-env \
             --version-label v-${{ github.run_number }}
