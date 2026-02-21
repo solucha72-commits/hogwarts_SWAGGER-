@@ -24,11 +24,11 @@ jobs:
       - name: Test AWS connection
         run: aws sts get-caller-identity
 
-      - name: Build with Gradle
-        run: ./gradlew build
-
       - name: Get AWS Account ID
         run: echo "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_ENV
+
+      - name: Build with Gradle
+        run: ./gradlew build
 
       - name: Zip application
         run: zip -r application.zip .
