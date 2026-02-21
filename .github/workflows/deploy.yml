@@ -42,10 +42,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # 6️⃣ Nombre imagen en minúsculas
-      - name: Lowercase Image Name
+      - name: Sanitize Image Name
         run: |
-          echo "IMAGE_NAME=$(echo ghcr.io/${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-
+          REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/-/g' | sed 's/-$//')
+          echo "IMAGE_NAME=ghcr.io/$REPO" >> $GITHUB_ENV
       # 7️⃣ Build y push Docker
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
