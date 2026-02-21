@@ -1,51 +1,74 @@
-name: Deploy to Elastic Beanstalk
+name: Deploy Docker to Elastic Beanstalk
 
 on:
   push:
-    branches:
-      - master
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      # 1️⃣ Checkout
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      # 2️⃣ Configurar Java
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: us-east-1
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
 
-      - name: Test AWS connection
-        run: aws sts get-caller-identity
+      # 3️⃣ Build (sin tests)
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
 
-      - name: Get AWS Account ID
-        run: echo "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_ENV
+      # 4️⃣ Login en GitHub Container Registry
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build with Gradle
-        run: ./gradlew build
-
-      - name: Zip application
-        run: zip -r application.zip .
-
-      - name: Upload to S3
-        run: aws s3 cp application.zip s3://elasticbeanstalk-us-east-1-$ACCOUNT_ID/application.zip
-
-      - name: Create new application version
+      # 5️⃣ Nombre imagen en minúsculas
+      - name: Lowercase Image Name
         run: |
-          aws elasticbeanstalk create-application-version \
-            --application-name HogwartsAPI \
-            --version-label v-${{ github.run_number }} \
-            --source-bundle S3Bucket="elasticbeanstalk-us-east-1-$ACCOUNT_ID",S3Key="application.zip"
+          echo "IMAGE_NAME=$(echo ghcr.io/${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
+      # 6️⃣ Build y push Docker
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ github.run_number }}
 
+      # 7️⃣ Generar docker-compose.yml
+      - name: Generate docker-compose.yml
+        run: |
+          echo "services:
+            app:
+              image: ${{ env.IMAGE_NAME }}:${{ github.run_number }}
+              ports:
+                - '80:8080'
+              restart: always" > docker-compose.yml
+
+      # 8️⃣ Deploy a Elastic Beanstalk
       - name: Deploy to Elastic Beanstalk
-        run: |
-          aws elasticbeanstalk update-environment \
-            --environment-name HogwartsAPI-env \
-            --version-label v-${{ github.run_number }}
+        uses: einaregilsson/beanstalk-deploy@v21
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_session_token: ${{ secrets.AWS_SESSION_TOKEN }}
+          region: us-east-1
+          application_name: HogwartsAPI
+          environment_name: HogwartsAPI-env
+          version_label: "hogwarts-v-${{ github.run_number }}"
+          deployment_package: docker-compose.yml
