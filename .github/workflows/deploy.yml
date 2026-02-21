@@ -53,6 +53,7 @@ jobs:
           push: true
           tags: ${{ env.IMAGE_NAME }}:${{ github.run_number }}
 
+
       # 8️⃣ Generar docker-compose.yml para Elastic Beanstalk
       - name: Generate docker-compose.yml
         run: |
