@@ -62,7 +62,6 @@ jobs:
               ports:
                 - '80:8080' 
               restart: always" > docker-compose.yml
-
       # 9️⃣ Deploy a Elastic Beanstalk
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v21
